@@ -139,18 +139,38 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     @Override
     public void run() {
+        long lastTime = System.nanoTime();
+        final double nsPerTick = 1_000_000_000.0 / 60.0; // 渲染60 FPS
+        final double gameSpeedFactor = 0.5; // 游戏速度因子，0.6表示降低为60%速度
+        double delta = 0;
+
         while (running) {
-            long start = System.currentTimeMillis();
-            update();
+            long now = System.nanoTime();
+            delta += (now - lastTime) / nsPerTick * gameSpeedFactor; // 应用速度因子
+            lastTime = now;
+
+            // 更新逻辑 - 固定时间步长
+            while (delta >= 1) {
+                update();
+                delta--;
+            }
+
+            // 渲染
             draw();
-            long elapsed = System.currentTimeMillis() - start;
-            long sleep = timeInterval - elapsed;
-            if (sleep > 0) try { Thread.sleep(sleep); } catch (InterruptedException ignored) {}
+
+            // 动态睡眠控制，保持流畅
+            long sleepTime = (long) ((1.0 - delta / gameSpeedFactor) * (1000.0 / 60.0));
+            if (sleepTime > 0) {
+                try {
+                    Thread.sleep(sleepTime);
+                } catch (InterruptedException ignored) {}
+            }
         }
     }
 
     private void update() {
         time += timeInterval;
+        updateBackground(); // 更新背景滚动
         difficulty.increaseDifficulty();
         enemyMaxNumber         = difficulty.getEnemyMaxNumber();
         cycleDuration          = difficulty.getCycleDuration();
@@ -350,19 +370,39 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         }
     }
 
+    // 背景绘制优化 - 使用双缓冲思路
+    private Bitmap bgBuffer1;
+    private Bitmap bgBuffer2;
+    private int lastBgOffset = -1;
+
     private void drawBackground(Canvas canvas) {
         if (bgImage == null) {
             canvas.drawColor(Color.BLACK);
             return;
         }
-        canvas.drawBitmap(bgImage, 0, backGroundTop - LOGIC_HEIGHT, paint);
-        canvas.drawBitmap(bgImage, 0, backGroundTop, paint);
-        backGroundTop += 1;
-        if (backGroundTop >= LOGIC_HEIGHT) backGroundTop = 0;
+        // 计算背景滚动位置
+        int bgHeight = bgImage.getHeight();
+        int offset = backGroundTop % bgHeight;
+
+        // 只有当offset变化时才重新计算位置
+        if (offset != lastBgOffset) {
+            lastBgOffset = offset;
+        }
+
+        // 绘制两张背景图实现无缝滚动
+        canvas.drawBitmap(bgImage, 0, offset - bgHeight, null);
+        canvas.drawBitmap(bgImage, 0, offset, null);
+    }
+
+    /**
+     * 更新背景滚动位置，在update中调用保证流畅性
+     */
+    private void updateBackground() {
+        backGroundTop += 2; // 每帧滚动2像素
     }
 
     /** 所有游戏精灵统一缩放比例（相对于原图）*/
-    private static final float SPRITE_SCALE = 0.5f;
+    private static final float SPRITE_SCALE = 0.45f;  // 飞机贴图缩放比例（稍微调小）
 
     private void drawObjects(Canvas canvas, List<? extends AbstractFlyingObject> objects) {
         for (AbstractFlyingObject obj : objects) {

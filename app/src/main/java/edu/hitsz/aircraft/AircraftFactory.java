@@ -1,5 +1,6 @@
 package edu.hitsz.aircraft;
 
+import android.graphics.Bitmap;
 import edu.hitsz.application.ImageManager;
 import edu.hitsz.basic.AbstractFlyingObject;
 
@@ -26,8 +27,19 @@ public class AircraftFactory {
     }
 
     public static AbstractAircraft createBossAircraft() {
-        int imgW = (ImageManager.BOSS_ENEMY_IMAGE != null) ? ImageManager.BOSS_ENEMY_IMAGE.getWidth() : 64;
-        int locationX = AbstractFlyingObject.WINDOW_WIDTH / 2 - imgW / 2;
-        return new BossEnemy(locationX, 50, 2, 0, 999);
+        // Boss水平居中，垂直位置在屏幕最上方
+        // 考虑贴图缩放比例0.45，计算实际显示尺寸
+        Bitmap img = ImageManager.BOSS_ENEMY_IMAGE;
+        int imgW = (img != null) ? img.getWidth() : 200;
+        int imgH = (img != null) ? img.getHeight() : 150;
+        int displayW = (int) (imgW * 0.45f);
+        int displayH = (int) (imgH * 0.45f);
+
+        // 水平居中：屏幕宽度一半
+        int locationX = AbstractFlyingObject.WINDOW_WIDTH / 2;
+        // 垂直位置：让贴图完整显示，顶部留出一点边距
+        // locationY是中心点，要让贴图顶部在屏幕内，中心点需要是 displayH/2 + 边距
+        int locationY = displayH / 2 + 10;
+        return new BossEnemy(locationX, locationY, 2, 0, 999);
     }
 }

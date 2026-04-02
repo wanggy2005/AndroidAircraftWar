@@ -40,19 +40,36 @@ public abstract class AbstractFlyingObject {
         }
     }
 
+    // 碰撞范围缩放系数（0.0-1.0，越小碰撞范围越小）
+    private static final float COLLISION_SCALE_X = 0.40f;  // 水平方向（稍微调小）
+    private static final float COLLISION_SCALE_Y = 0.25f;  // 垂直方向（更小）
+
     public boolean crash(AbstractFlyingObject flyingObject) {
-        int factor = this instanceof AbstractAircraft ? 2 : 1;
-        int fFactor = flyingObject instanceof AbstractAircraft ? 2 : 1;
+        // 计算两个物体的碰撞框（使用缩放后的尺寸，X和Y方向可以不同）
+        int thisWidth = (int) (this.getWidth() * COLLISION_SCALE_X);
+        int thisHeight = (int) (this.getHeight() * COLLISION_SCALE_Y);
+        int otherWidth = (int) (flyingObject.getWidth() * COLLISION_SCALE_X);
+        int otherHeight = (int) (flyingObject.getHeight() * COLLISION_SCALE_Y);
 
-        int x = flyingObject.getLocationX();
-        int y = flyingObject.getLocationY();
-        int fWidth = flyingObject.getWidth();
-        int fHeight = flyingObject.getHeight();
+        int otherX = flyingObject.getLocationX();
+        int otherY = flyingObject.getLocationY();
 
-        return x + (fWidth + this.getWidth()) / 2 > locationX
-                && x - (fWidth + this.getWidth()) / 2 < locationX
-                && y + (fHeight / fFactor + this.getHeight() / factor) / 2 > locationY
-                && y - (fHeight / fFactor + this.getHeight() / factor) / 2 < locationY;
+        // 计算碰撞边界（基于中心点）
+        int thisLeft = this.locationX - thisWidth / 2;
+        int thisRight = this.locationX + thisWidth / 2;
+        int thisTop = this.locationY - thisHeight / 2;
+        int thisBottom = this.locationY + thisHeight / 2;
+
+        int otherLeft = otherX - otherWidth / 2;
+        int otherRight = otherX + otherWidth / 2;
+        int otherTop = otherY - otherHeight / 2;
+        int otherBottom = otherY + otherHeight / 2;
+
+        // AABB碰撞检测
+        return thisLeft < otherRight &&
+               thisRight > otherLeft &&
+               thisTop < otherBottom &&
+               thisBottom > otherTop;
     }
 
     public int getLocationX() { return locationX; }

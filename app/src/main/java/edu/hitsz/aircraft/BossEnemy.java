@@ -26,14 +26,32 @@ public class BossEnemy extends AbstractAircraft {
     public void forward() {
         locationX += speedX;
         locationY += speedY;
+
         Bitmap img = ImageManager.BOSS_ENEMY_IMAGE;
-        int imgW = (img != null) ? img.getWidth() : 64;
-        if (locationX <= 0 || locationX >= AbstractFlyingObject.WINDOW_WIDTH - imgW / 2) {
+        int imgW = (img != null) ? img.getWidth() : 200;
+        int imgH = (img != null) ? img.getHeight() : 150;
+        // 考虑绘制时的缩放比例0.45
+        int displayW = (int) (imgW * 0.45f);
+        int displayH = (int) (imgH * 0.45f);
+        int halfDisplayW = displayW / 2;
+
+        // 水平边界检测 - 基于显示宽度的中心点边界
+        int minX = halfDisplayW;
+        int maxX = AbstractFlyingObject.WINDOW_WIDTH - halfDisplayW;
+        if (locationX <= minX || locationX >= maxX) {
             speedX = -speedX;
+            locationX = Math.max(minX, Math.min(locationX, maxX));
         }
-        if (locationY > AbstractFlyingObject.WINDOW_HEIGHT * 0.3) {
+
+        // 垂直边界检测 - Boss只在屏幕最上方小范围移动
+        // 初始位置是 displayH/2 + 10，在此基础上上下移动30像素
+        int baseY = displayH / 2 + 10;
+        if (locationY > baseY + 40) {
             speedY = -Math.abs(speedY);
+        } else if (locationY < baseY - 20) {
+            speedY = Math.abs(speedY);
         }
+
         if (hp <= 0) vanish();
     }
 
@@ -42,8 +60,12 @@ public class BossEnemy extends AbstractAircraft {
         List<BaseBullet> res = new LinkedList<>();
         int centerX = getLocationX();
         Bitmap img = ImageManager.BOSS_ENEMY_IMAGE;
-        int imgH = (img != null) ? img.getHeight() : 64;
-        int centerY = getLocationY() + imgH / 2 + 20;
+        int imgH = (img != null) ? img.getHeight() : 150;
+        // 子弹从Boss贴图底部中心发射
+        // locationY是中心点，贴图向下延伸imgH/2，所以底部是locationY + imgH/2
+        // 但绘制时使用了SPRITE_SCALE=0.45缩放，所以实际显示高度是imgH * 0.45
+        int displayHeight = (int) (imgH * 0.45f);
+        int centerY = getLocationY() + displayHeight / 2 + 10; // +10让子弹从贴图底部稍下方发射
         double angleStep = 2 * Math.PI / shootNum;
         for (int i = 0; i < shootNum; i++) {
             double angle = i * angleStep;
