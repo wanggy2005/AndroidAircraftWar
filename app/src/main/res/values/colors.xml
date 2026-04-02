@@ -1,5 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- 基础颜色 -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+
+    <!-- 主题颜色 - 深色太空主题 -->
+    <color name="primary">#FF6B6B</color>
+    <color name="primary_dark">#E94560</color>
+    <color name="primary_light">#FF8585</color>
+    <color name="accent">#00D9FF</color>
+    <color name="accent_dark">#00B4D8</color>
+
+    <!-- 背景颜色 -->
+    <color name="bg_dark">#0F0F1A</color>
+    <color name="bg_card">#1A1A2E</color>
+    <color name="bg_card_light">#252542</color>
+    <color name="bg_gradient_start">#1A1A2E</color>
+    <color name="bg_gradient_end">#16213E</color>
+
+    <!-- 文字颜色 -->
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#B8B8D1</color>
+    <color name="text_hint">#6B6B8C</color>
+
+    <!-- 按钮颜色 -->
+    <color name="btn_primary">#E94560</color>
+    <color name="btn_primary_pressed">#C73E54</color>
+    <color name="btn_secondary">#16213E</color>
+    <color name="btn_secondary_pressed">#1E2D4A</color>
+    <color name="btn_danger">#FF4757</color>
+    <color name="btn_success">#2ED573</color>
+
+    <!-- 状态颜色 -->
+    <color name="gold">#FFD700</color>
+    <color name="silver">#C0C0C0</color>
+    <color name="bronze">#CD7F32</color>
+    <color name="divider">#333355</color>
+    <color name="selected">#33E94560</color>
 </resources>

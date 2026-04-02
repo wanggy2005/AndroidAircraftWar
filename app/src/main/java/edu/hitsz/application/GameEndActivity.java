@@ -61,6 +61,9 @@ public class GameEndActivity extends AppCompatActivity {
             scoreManager.saveGameScore(score, gameTime, "Player", difficulty);
         }
 
+        // 设置得分显示动画
+        animateScore(tvScore, score);
+
         loadLeaderboard();
 
         btnRestart.setOnClickListener(v -> {
@@ -97,10 +100,10 @@ public class GameEndActivity extends AppCompatActivity {
         List<String> displayList = new ArrayList<>();
         for (int i = 0; i < leaderboard.size(); i++) {
             ScoreRecord r = leaderboard.get(i);
-            displayList.add((i + 1) + ". " + r.getPlayerName()
-                    + "  " + r.getScore() + "分"
-                    + "  " + r.getFormattedGameTime()
-                    + "  [" + r.getDifficulty() + "]");
+            String rankIcon = getRankIcon(i);
+            displayList.add(rankIcon + "  " + r.getPlayerName()
+                    + "    " + r.getScore() + "分"
+                    + "    " + r.getFormattedGameTime());
         }
         listAdapter = new ArrayAdapter<String>(this,
                 android.R.layout.simple_list_item_single_choice, displayList) {
@@ -108,13 +111,47 @@ public class GameEndActivity extends AppCompatActivity {
             public android.view.View getView(int position, android.view.View convertView, android.view.ViewGroup parent) {
                 android.widget.CheckedTextView view =
                         (android.widget.CheckedTextView) super.getView(position, convertView, parent);
-                view.setTextColor(android.graphics.Color.WHITE);
-                view.setTextSize(14f);
-                view.setPadding(16, 20, 16, 20);
+
+                // 根据排名设置不同颜色
+                int textColor;
+                if (position == 0) {
+                    textColor = android.graphics.Color.parseColor("#FFD700"); // 金色
+                } else if (position == 1) {
+                    textColor = android.graphics.Color.parseColor("#C0C0C0"); // 银色
+                } else if (position == 2) {
+                    textColor = android.graphics.Color.parseColor("#CD7F32"); // 铜色
+                } else {
+                    textColor = android.graphics.Color.parseColor("#B8B8D1"); // 默认
+                }
+
+                view.setTextColor(textColor);
+                view.setTextSize(15f);
+                view.setPadding(20, 18, 20, 18);
+                view.setBackgroundColor(android.graphics.Color.TRANSPARENT);
                 return view;
             }
         };
         listView.setAdapter(listAdapter);
         listView.setChoiceMode(ListView.CHOICE_MODE_SINGLE);
+    }
+
+    private String getRankIcon(int position) {
+        switch (position) {
+            case 0: return "🥇";
+            case 1: return "🥈";
+            case 2: return "🥉";
+            default: return String.valueOf(position + 1);
+        }
+    }
+
+    private void animateScore(final TextView textView, final int targetScore) {
+        android.animation.ValueAnimator animator = android.animation.ValueAnimator.ofInt(0, targetScore);
+        animator.setDuration(1000);
+        animator.setInterpolator(new android.view.animation.DecelerateInterpolator());
+        animator.addUpdateListener(animation -> {
+            int value = (int) animation.getAnimatedValue();
+            textView.setText(String.valueOf(value));
+        });
+        animator.start();
     }
 }
