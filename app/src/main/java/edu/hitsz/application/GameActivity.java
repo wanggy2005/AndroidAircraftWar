@@ -40,6 +40,18 @@ public class GameActivity extends AppCompatActivity implements GameView.GameCall
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        SoundManager.getInstance().stopAllMusic();
+        SoundManager.getInstance().release();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        SoundManager.getInstance().pauseAllMusic();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        SoundManager.getInstance().resumeMusicIfNeeded();
     }
 }

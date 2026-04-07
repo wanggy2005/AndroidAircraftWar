@@ -226,7 +226,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         for (AbstractAircraft a : enemyAircrafts) {
             if (a instanceof BossEnemy && !a.notValid()) return true;
         }
-        if (bossSpawned) { bossSpawned = false; soundManager.stopBossMusic(); }
+        if (bossSpawned) {
+            bossSpawned = false;
+            soundManager.switchToBackgroundMusicAfterBoss();
+        }
         return false;
     }
 
