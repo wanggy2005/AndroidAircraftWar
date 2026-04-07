@@ -249,6 +249,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         if (heroShootCycle >= heroShootCycleDuration) {
             heroShootCycle %= heroShootCycleDuration;
             heroBullets.addAll(heroAircraft.shoot());
+            soundManager.playBulletShootSound();
         }
     }
 
