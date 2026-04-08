@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">AircraftWar</string>
+    <string name="rank_title">排行榜</string>
+    <string name="current_score_text">当前得分：%1$d</string>
 </resources>

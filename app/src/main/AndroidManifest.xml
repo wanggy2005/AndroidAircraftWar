@@ -29,6 +29,11 @@
             android:configChanges="orientation|screenSize" />
 
         <activity
+            android:name="edu.hitsz.application.ScoreActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+
+        <activity
             android:name="edu.hitsz.application.GameEndActivity"
             android:exported="false"
             android:screenOrientation="portrait" />

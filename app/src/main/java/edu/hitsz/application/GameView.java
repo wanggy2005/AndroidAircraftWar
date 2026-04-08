@@ -17,8 +17,6 @@ import edu.hitsz.difficulty.AbstractDifficulty;
 import edu.hitsz.difficulty.DifficultyFactory;
 import edu.hitsz.observer.BombManager;
 import edu.hitsz.prop.*;
-import edu.hitsz.score.FileScoreDao;
-import edu.hitsz.score.ScoreManager;
 
 import java.util.LinkedList;
 import java.util.List;
@@ -60,7 +58,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private final Bitmap bgImage;
     private final BombManager bombManager;
     private final SoundManager soundManager;
-    private final ScoreManager scoreManager;
     private final long gameStartTime;
     private final String difficultyName;
 
@@ -106,7 +103,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         // 炸弹 / 分数
         bombManager  = new BombManager();
         BombProp.setBombManager(bombManager);
-        scoreManager = new ScoreManager(new FileScoreDao(context));
         gameStartTime = System.currentTimeMillis();
 
         getHolder().addCallback(this);
@@ -212,7 +208,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             soundManager.stopAllMusic();
             soundManager.playGameOverSound();
             long gameTime = System.currentTimeMillis() - gameStartTime;
-            scoreManager.saveGameScore(score, gameTime, "Player", difficultyName);
             HeroAircraft.resetInstance();
             if (callback != null) {
                 post(() -> callback.onGameOver(score, difficultyName, gameTime));
