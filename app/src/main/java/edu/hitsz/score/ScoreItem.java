@@ -5,14 +5,16 @@ public class ScoreItem {
     private int id;
     private String name;
     private int score;
+    private String difficulty;
 
     public ScoreItem() {
     }
 
-    public ScoreItem(int id, String name, int score) {
+    public ScoreItem(int id, String name, int score, String difficulty) {
         this.id = id;
         this.name = name;
         this.score = score;
+        this.difficulty = difficulty;
     }
 
     public int getId() {
@@ -37,5 +39,13 @@ public class ScoreItem {
 
     public void setScore(int score) {
         this.score = score;
+    }
+
+    public String getDifficulty() {
+        return difficulty;
+    }
+
+    public void setDifficulty(String difficulty) {
+        this.difficulty = difficulty;
     }
 }

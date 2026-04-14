@@ -57,7 +57,7 @@ public class GameEndActivity extends AppCompatActivity {
         tvDifficulty.setText("难度：" + difficulty);
 
         if (score > 0) {
-            scoreDbHelper.addScore("Player", score);
+            scoreDbHelper.addScore("Player", score, difficulty);
         }
 
         scoreAdapter = new ScoreAdapter(this, leaderboard);
@@ -99,7 +99,7 @@ public class GameEndActivity extends AppCompatActivity {
     }
 
     private void loadLeaderboard() {
-        List<ScoreItem> allScores = scoreDbHelper.getAllScores();
+        List<ScoreItem> allScores = scoreDbHelper.getScoresByDifficulty(difficulty);
         scoreAdapter.refreshData(allScores);
         selectedPosition = -1;
         listView.clearChoices();

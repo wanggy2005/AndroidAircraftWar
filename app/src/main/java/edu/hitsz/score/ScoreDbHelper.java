@@ -12,12 +12,13 @@ import java.util.List;
 public class ScoreDbHelper extends SQLiteOpenHelper {
 
     private static final String DB_NAME = "score_rank.db";
-    private static final int DB_VERSION = 1;
+    private static final int DB_VERSION = 2;
 
     public static final String TABLE_SCORE = "score_table";
     public static final String COL_ID = "id";
     public static final String COL_NAME = "name";
     public static final String COL_SCORE = "score";
+    public static final String COL_DIFFICULTY = "difficulty";
 
     public ScoreDbHelper(Context context) {
         super(context, DB_NAME, null, DB_VERSION);
@@ -28,7 +29,8 @@ public class ScoreDbHelper extends SQLiteOpenHelper {
         String createSql = "CREATE TABLE " + TABLE_SCORE + " ("
                 + COL_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, "
                 + COL_NAME + " TEXT NOT NULL, "
-                + COL_SCORE + " INTEGER NOT NULL"
+                + COL_SCORE + " INTEGER NOT NULL, "
+                + COL_DIFFICULTY + " TEXT NOT NULL"
                 + ")";
         db.execSQL(createSql);
     }
@@ -39,23 +41,24 @@ public class ScoreDbHelper extends SQLiteOpenHelper {
         onCreate(db);
     }
 
-    public long addScore(String name, int score) {
+    public long addScore(String name, int score, String difficulty) {
         SQLiteDatabase db = getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put(COL_NAME, name);
         values.put(COL_SCORE, score);
+        values.put(COL_DIFFICULTY, difficulty);
         return db.insert(TABLE_SCORE, null, values);
     }
 
-    public List<ScoreItem> getAllScores() {
+    public List<ScoreItem> getScoresByDifficulty(String difficulty) {
         List<ScoreItem> result = new ArrayList<>();
         SQLiteDatabase db = getReadableDatabase();
 
         Cursor cursor = db.query(
                 TABLE_SCORE,
-                new String[]{COL_ID, COL_NAME, COL_SCORE},
-                null,
-                null,
+                new String[]{COL_ID, COL_NAME, COL_SCORE, COL_DIFFICULTY},
+                COL_DIFFICULTY + "=?",
+                new String[]{difficulty},
                 null,
                 null,
                 COL_SCORE + " DESC"
@@ -66,12 +69,14 @@ public class ScoreDbHelper extends SQLiteOpenHelper {
                 int idIndex = cursor.getColumnIndexOrThrow(COL_ID);
                 int nameIndex = cursor.getColumnIndexOrThrow(COL_NAME);
                 int scoreIndex = cursor.getColumnIndexOrThrow(COL_SCORE);
+                int difficultyIndex = cursor.getColumnIndexOrThrow(COL_DIFFICULTY);
 
                 while (cursor.moveToNext()) {
                     int id = cursor.getInt(idIndex);
                     String name = cursor.getString(nameIndex);
                     int score = cursor.getInt(scoreIndex);
-                    result.add(new ScoreItem(id, name, score));
+                    String itemDifficulty = cursor.getString(difficultyIndex);
+                    result.add(new ScoreItem(id, name, score, itemDifficulty));
                 }
             } finally {
                 cursor.close();
