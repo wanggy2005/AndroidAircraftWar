@@ -73,7 +73,7 @@ public class SoundManager {
         if (context == null) return null;
         int resId = context.getResources().getIdentifier(rawName, "raw", context.getPackageName());
         if (resId == 0) return null;
-
+        
         try {
             if (audioManager != null) {
                 audioManager.requestAudioFocus(null, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
@@ -86,6 +86,7 @@ public class SoundManager {
         } catch (Exception e) {
             return null;
         }
+
     }
 
     private MediaPlayer createMediaPlayerManual(int resId) {
