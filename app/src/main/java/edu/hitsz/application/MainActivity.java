@@ -1,6 +1,7 @@
 package edu.hitsz.application;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -57,6 +58,24 @@ public class MainActivity extends AppCompatActivity {
 
         btnStart.setOnClickListener(v -> startGame());
         btnExit.setOnClickListener(v -> finish());
+
+        Button btnOnline = findViewById(R.id.btnOnline);
+        btnOnline.setOnClickListener(v -> startOnline());
+    }
+
+    private void startOnline() {
+        // 检查是否已登录
+        SharedPreferences prefs = getSharedPreferences(LoginActivity.PREF_NAME, MODE_PRIVATE);
+        String playerId = prefs.getString(LoginActivity.KEY_PLAYER_ID, null);
+        if (playerId == null || playerId.isEmpty()) {
+            // 未登录，跳转到登录页面
+            Intent intent = new Intent(this, LoginActivity.class);
+            startActivity(intent);
+        } else {
+            // 已登录，跳转到联机大厅
+            Intent intent = new Intent(this, OnlineLobbyActivity.class);
+            startActivity(intent);
+        }
     }
 
     private void startGame() {

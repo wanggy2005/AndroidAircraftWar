@@ -138,6 +138,26 @@
             app:iconTint="@color/white"
             android:background="@drawable/button_primary_bg" />
 
+        <!-- 联机对战按钮 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnOnline"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginBottom="12dp"
+            android:elevation="6dp"
+            android:stateListAnimator="@animator/button_press_animator"
+            android:text="联机对战"
+            android:textColor="@color/white"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            app:backgroundTint="@color/accent_dark"
+            app:cornerRadius="12dp"
+            app:icon="@android:drawable/ic_dialog_info"
+            app:iconGravity="textStart"
+            app:iconPadding="8dp"
+            app:iconTint="@color/white" />
+
         <!-- 退出按钮 -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnExit"

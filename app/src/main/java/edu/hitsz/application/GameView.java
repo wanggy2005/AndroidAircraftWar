@@ -15,6 +15,8 @@ import edu.hitsz.basic.AbstractFlyingObject;
 import edu.hitsz.bullet.BaseBullet;
 import edu.hitsz.difficulty.AbstractDifficulty;
 import edu.hitsz.difficulty.DifficultyFactory;
+import edu.hitsz.network.GameSyncManager;
+import edu.hitsz.network.OnlineGameData;
 import edu.hitsz.observer.BombManager;
 import edu.hitsz.prop.*;
 
@@ -22,7 +24,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 /**
- * 游戏主视图 - 基于 SurfaceView，替代原 Java SE 的 JPanel
+ * 游戏主视图 - 基于 SurfaceView，支持单机和联机模式
  */
 public class GameView extends SurfaceView implements SurfaceHolder.Callback, Runnable {
 
@@ -61,6 +63,26 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private final long gameStartTime;
     private final String difficultyName;
 
+    // ---------- 联机模式 ----------
+    private final boolean isOnline;
+    private final GameSyncManager syncManager;
+    private float opponentX = 256, opponentY = 100;
+    private int opponentScore = 0, opponentHp = 1000;
+    private boolean opponentAlive = true;
+    private boolean myAlive = true;
+    private long myDeathTime = 0;
+    private long opponentDeathTime = 0;
+    // 快捷消息显示
+    private String quickMsgDisplay = null;
+    private long quickMsgDisplayTime = 0;
+    private static final long QUICK_MSG_DURATION = 2000; // 2秒
+    // 快捷消息按钮区域
+    private boolean showQuickMsgPanel = false;
+    private static final String[] QUICK_MESSAGES = {"加油", "厉害", "再来", "小心", "666"};
+    private static final float QM_BTN_SIZE = 60;
+    private static final float QM_PANEL_X = 460;
+    private static final float QM_TOGGLE_Y = 50;
+
     // ---------- Paint ----------
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
@@ -75,9 +97,16 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private final GameCallback callback;
 
     public GameView(Context context, String difficultyName, boolean soundEnabled, GameCallback callback) {
+        this(context, difficultyName, soundEnabled, callback, false, null);
+    }
+
+    public GameView(Context context, String difficultyName, boolean soundEnabled,
+                    GameCallback callback, boolean isOnline, GameSyncManager syncManager) {
         super(context);
         this.difficultyName = difficultyName;
         this.callback = callback;
+        this.isOnline = isOnline;
+        this.syncManager = syncManager;
 
         // 设置逻辑坐标系尺寸
         AbstractFlyingObject.WINDOW_WIDTH  = LOGIC_WIDTH;
@@ -117,6 +146,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         gameThread = new Thread(this, "GameThread");
         gameThread.start();
         soundManager.startBackgroundMusic();
+        if (isOnline && syncManager != null) {
+            syncManager.start();
+        }
     }
 
     @Override
@@ -128,6 +160,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
         running = false;
+        if (isOnline && syncManager != null) {
+            syncManager.stop();
+        }
         try { if (gameThread != null) gameThread.join(500); } catch (InterruptedException ignored) {}
     }
 
@@ -203,14 +238,60 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         postProcessAction();
 
         // 游戏结束判定
-        if (heroAircraft.getHp() <= 0) {
-            running = false;
-            soundManager.stopAllMusic();
-            soundManager.playGameOverSound();
-            long gameTime = System.currentTimeMillis() - gameStartTime;
-            HeroAircraft.resetInstance();
-            if (callback != null) {
-                post(() -> callback.onGameOver(score, difficultyName, gameTime));
+        if (heroAircraft.getHp() <= 0 && myAlive) {
+            myAlive = false;
+            myDeathTime = System.currentTimeMillis() - gameStartTime;
+
+            if (!isOnline) {
+                // 单机模式：直接结束
+                running = false;
+                soundManager.stopAllMusic();
+                soundManager.playGameOverSound();
+                HeroAircraft.resetInstance();
+                if (callback != null) {
+                    post(() -> callback.onGameOver(score, difficultyName, myDeathTime));
+                }
+            } else {
+                // 联机模式：通知服务器本方死亡，等待对方也死亡
+                soundManager.playGameOverSound();
+            }
+        }
+
+        // 联机模式：同步状态并检测双方死亡
+        if (isOnline && syncManager != null) {
+            syncManager.updateMyState(score, heroAircraft.getHp(),
+                    heroAircraft.getLocationX(), heroAircraft.getLocationY(), myAlive);
+
+            OnlineGameData opData = syncManager.getOpponentState();
+            opponentX = opData.getX();
+            opponentY = opData.getY();
+            opponentScore = opData.getScore();
+            opponentHp = opData.getHp();
+            opponentAlive = opData.isAlive();
+
+            // 检测对方死亡时间
+            if (!opponentAlive && opponentDeathTime == 0) {
+                opponentDeathTime = System.currentTimeMillis() - gameStartTime;
+            }
+
+            // 获取快捷消息
+            java.util.List<String> msgs = syncManager.pollReceivedMessages();
+            if (!msgs.isEmpty()) {
+                quickMsgDisplay = msgs.get(msgs.size() - 1);
+                quickMsgDisplayTime = System.currentTimeMillis();
+            }
+
+            // 双方都死亡，游戏结束
+            if (!myAlive && !opponentAlive) {
+                running = false;
+                soundManager.stopAllMusic();
+                HeroAircraft.resetInstance();
+                if (callback instanceof GameActivity) {
+                    GameActivity activity = (GameActivity) callback;
+                    post(() -> activity.onOnlineGameOver(
+                            score, opponentScore, difficultyName,
+                            myDeathTime, opponentDeathTime));
+                }
             }
         }
     }
@@ -361,8 +442,15 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             drawObjects(canvas, heroBullets);
             drawObjects(canvas, enemyAircrafts);
             drawObjects(canvas, props);
+            if (isOnline) drawOpponent(canvas);
             drawHero(canvas);
             drawHUD(canvas);
+            if (isOnline) {
+                drawOnlineHUD(canvas);
+                drawQuickMessage(canvas);
+                drawQuickMsgToggle(canvas);
+                if (showQuickMsgPanel) drawQuickMsgPanel(canvas);
+            }
             canvas.restore();
         } finally {
             holder.unlockCanvasAndPost(canvas);
@@ -430,8 +518,123 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paint.setColor(Color.RED);
         paint.setTextSize(28);
         paint.setTypeface(Typeface.DEFAULT_BOLD);
-        canvas.drawText("SCORE: " + score, 10, 35, paint);
-        canvas.drawText("LIFE:  " + heroAircraft.getHp(), 10, 65, paint);
+        if (isOnline) {
+            // 联机模式：左侧显示自己信息
+            canvas.drawText("ME: " + score, 10, 35, paint);
+            canvas.drawText("HP: " + heroAircraft.getHp(), 10, 65, paint);
+        } else {
+            canvas.drawText("SCORE: " + score, 10, 35, paint);
+            canvas.drawText("LIFE:  " + heroAircraft.getHp(), 10, 65, paint);
+        }
+    }
+
+    /**
+     * 绘制对手飞机（蓝色色调，半透明）
+     */
+    private void drawOpponent(Canvas canvas) {
+        Bitmap bmp = ImageManager.HERO_IMAGE;
+        if (bmp == null || !opponentAlive) return;
+        // 使用蓝色滤镜绘制对手飞机
+        Paint opPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        opPaint.setAlpha(160); // 半透明
+        opPaint.setColorFilter(new android.graphics.PorterDuffColorFilter(
+                0xFF4488FF, android.graphics.PorterDuff.Mode.MULTIPLY));
+        float w = bmp.getWidth() * SPRITE_SCALE;
+        float h = bmp.getHeight() * SPRITE_SCALE;
+        android.graphics.RectF dst = new android.graphics.RectF(
+                opponentX - w / 2f, opponentY - h / 2f,
+                opponentX + w / 2f, opponentY + h / 2f);
+        canvas.drawBitmap(bmp, null, dst, opPaint);
+        // 绘制对手标识
+        paint.setColor(0xFF4488FF);
+        paint.setTextSize(16);
+        paint.setTextAlign(Paint.Align.CENTER);
+        canvas.drawText("对手", opponentX, opponentY - h / 2f - 8, paint);
+        paint.setTextAlign(Paint.Align.LEFT);
+    }
+
+    /**
+     * 绘制联机 HUD（右侧显示对手信息）
+     */
+    private void drawOnlineHUD(Canvas canvas) {
+        paint.setColor(0xFF4488FF);
+        paint.setTextSize(24);
+        paint.setTypeface(Typeface.DEFAULT_BOLD);
+        paint.setTextAlign(Paint.Align.RIGHT);
+        canvas.drawText("VS: " + opponentScore, LOGIC_WIDTH - 10, 35, paint);
+
+        // 对手血量条
+        float barX = LOGIC_WIDTH - 120;
+        float barY = 50;
+        float barWidth = 110;
+        float barHeight = 12;
+        paint.setColor(0x44FFFFFF);
+        canvas.drawRect(barX, barY, barX + barWidth, barY + barHeight, paint);
+        float hpRatio = Math.max(0, Math.min(1, opponentHp / 1000f));
+        paint.setColor(opponentAlive ? 0xFF4488FF : 0xFFFF4444);
+        canvas.drawRect(barX, barY, barX + barWidth * hpRatio, barY + barHeight, paint);
+
+        paint.setTextSize(14);
+        canvas.drawText(opponentAlive ? "HP:" + opponentHp : "已阵亡", LOGIC_WIDTH - 10, 80, paint);
+        paint.setTextAlign(Paint.Align.LEFT);
+    }
+
+    /**
+     * 绘制对手发来的快捷消息气泡
+     */
+    private void drawQuickMessage(Canvas canvas) {
+        if (quickMsgDisplay == null) return;
+        long elapsed = System.currentTimeMillis() - quickMsgDisplayTime;
+        if (elapsed > QUICK_MSG_DURATION) {
+            quickMsgDisplay = null;
+            return;
+        }
+        // 气泡背景
+        float alpha = 1f - (float) elapsed / QUICK_MSG_DURATION;
+        paint.setColor(0xFF4488FF);
+        paint.setAlpha((int) (200 * alpha));
+        float textWidth = paint.measureText(quickMsgDisplay);
+        float bx = (LOGIC_WIDTH - textWidth) / 2f - 12;
+        float by = 120;
+        canvas.drawRoundRect(bx, by, bx + textWidth + 24, by + 40, 10, 10, paint);
+        // 文字
+        paint.setColor(Color.WHITE);
+        paint.setAlpha((int) (255 * alpha));
+        paint.setTextSize(22);
+        paint.setTextAlign(Paint.Align.CENTER);
+        canvas.drawText(quickMsgDisplay, LOGIC_WIDTH / 2f, by + 28, paint);
+        paint.setTextAlign(Paint.Align.LEFT);
+        paint.setAlpha(255);
+    }
+
+    /**
+     * 绘制快捷消息切换按钮
+     */
+    private void drawQuickMsgToggle(Canvas canvas) {
+        paint.setColor(showQuickMsgPanel ? 0xCC4488FF : 0x664488FF);
+        canvas.drawRoundRect(QM_PANEL_X, QM_TOGGLE_Y, QM_PANEL_X + 42, QM_TOGGLE_Y + 32, 8, 8, paint);
+        paint.setColor(Color.WHITE);
+        paint.setTextSize(14);
+        paint.setTextAlign(Paint.Align.CENTER);
+        canvas.drawText("💬", QM_PANEL_X + 21, QM_TOGGLE_Y + 23, paint);
+        paint.setTextAlign(Paint.Align.LEFT);
+    }
+
+    /**
+     * 绘制快捷消息选择面板
+     */
+    private void drawQuickMsgPanel(Canvas canvas) {
+        float startY = QM_TOGGLE_Y + 40;
+        for (int i = 0; i < QUICK_MESSAGES.length; i++) {
+            float y = startY + i * (QM_BTN_SIZE + 4);
+            paint.setColor(0xCC1A1A2E);
+            canvas.drawRoundRect(QM_PANEL_X - 10, y, LOGIC_WIDTH - 6, y + QM_BTN_SIZE - 4, 8, 8, paint);
+            paint.setColor(Color.WHITE);
+            paint.setTextSize(18);
+            paint.setTextAlign(Paint.Align.CENTER);
+            canvas.drawText(QUICK_MESSAGES[i], (QM_PANEL_X - 10 + LOGIC_WIDTH - 6) / 2f, y + 35, paint);
+            paint.setTextAlign(Paint.Align.LEFT);
+        }
     }
 
     // ======================== Touch ========================
@@ -440,10 +643,39 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     public boolean onTouchEvent(MotionEvent event) {
         float lx = event.getX() / scaleX;
         float ly = event.getY() / scaleY;
+
+        if (isOnline && event.getAction() == MotionEvent.ACTION_DOWN) {
+            // 检测快捷消息切换按钮
+            if (lx >= QM_PANEL_X && lx <= QM_PANEL_X + 42 &&
+                    ly >= QM_TOGGLE_Y && ly <= QM_TOGGLE_Y + 32) {
+                showQuickMsgPanel = !showQuickMsgPanel;
+                return true;
+            }
+            // 检测快捷消息面板点击
+            if (showQuickMsgPanel) {
+                float startY = QM_TOGGLE_Y + 40;
+                for (int i = 0; i < QUICK_MESSAGES.length; i++) {
+                    float y = startY + i * (QM_BTN_SIZE + 4);
+                    if (lx >= QM_PANEL_X - 10 && lx <= LOGIC_WIDTH - 6 &&
+                            ly >= y && ly <= y + QM_BTN_SIZE - 4) {
+                        if (syncManager != null) {
+                            syncManager.sendQuickMessage(QUICK_MESSAGES[i]);
+                        }
+                        showQuickMsgPanel = false;
+                        return true;
+                    }
+                }
+                showQuickMsgPanel = false;
+                return true;
+            }
+        }
+
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
             case MotionEvent.ACTION_MOVE:
-                heroAircraft.setLocation(lx, ly);
+                if (myAlive) {
+                    heroAircraft.setLocation(lx, ly);
+                }
                 break;
         }
         return true;
