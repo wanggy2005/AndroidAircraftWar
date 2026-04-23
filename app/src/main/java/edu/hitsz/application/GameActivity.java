@@ -58,6 +58,9 @@ public class GameActivity extends AppCompatActivity implements GameView.GameCall
                         data.getLong("myTime", 0L));
                 intent.putExtra(OnlineGameEndActivity.EXTRA_OPPONENT_TIME,
                         data.getLong("opponentTime", 0L));
+                intent.putExtra("roomId", data.getString("roomId"));
+                intent.putExtra("playerId", data.getString("playerId"));
+                intent.putExtra("serverUrl", data.getString("serverUrl"));
                 startActivity(intent);
                 finish();
             }
@@ -112,6 +115,10 @@ public class GameActivity extends AppCompatActivity implements GameView.GameCall
         bundle.putString("difficulty", difficulty);
         bundle.putLong("myTime", myTime);
         bundle.putLong("opponentTime", opponentTime);
+        // 传递房间信息，支持回到房间
+        bundle.putString("roomId", getIntent().getStringExtra(EXTRA_ROOM_ID));
+        bundle.putString("playerId", getIntent().getStringExtra(EXTRA_PLAYER_ID));
+        bundle.putString("serverUrl", getIntent().getStringExtra(EXTRA_SERVER_URL));
         message.setData(bundle);
         uiHandler.sendMessage(message);
     }

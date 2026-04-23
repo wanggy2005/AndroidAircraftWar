@@ -100,6 +100,16 @@ public class OnlineLobbyActivity extends AppCompatActivity {
         btnLeaveRoom.setOnClickListener(v -> leaveRoom());
         findViewById(R.id.btnBackToMenu).setOnClickListener(v -> finish());
         findViewById(R.id.btnLogout).setOnClickListener(v -> logout());
+
+        // 从结算页面“回到房间”跳转过来，自动加入房间
+        String returnRoomId = getIntent().getStringExtra("roomId");
+        String returnServerUrl = getIntent().getStringExtra("serverUrl");
+        if (returnRoomId != null && !returnRoomId.isEmpty()) {
+            if (returnServerUrl != null) ApiClient.setBaseUrl(returnServerUrl);
+            etRoomId.setText(returnRoomId);
+            // 延迟自动加入房间
+            handler.postDelayed(this::joinRoom, 500);
+        }
     }
 
     private void createRoom() {

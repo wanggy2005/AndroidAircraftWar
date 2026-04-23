@@ -192,6 +192,24 @@
 
         <!-- 操作按钮 -->
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnBackToRoom"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginBottom="10dp"
+            android:elevation="4dp"
+            android:stateListAnimator="@animator/button_press_animator"
+            android:text="回到房间"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:backgroundTint="@color/accent_dark"
+            app:cornerRadius="12dp"
+            app:icon="@android:drawable/ic_menu_revert"
+            app:iconGravity="textStart"
+            app:iconPadding="8dp"
+            app:iconTint="@color/white" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnBackToLobby"
             android:layout_width="match_parent"
             android:layout_height="52dp"

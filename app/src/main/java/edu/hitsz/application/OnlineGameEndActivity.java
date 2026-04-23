@@ -68,6 +68,20 @@ public class OnlineGameEndActivity extends AppCompatActivity {
         }
 
         // 按钮事件
+        String roomId = getIntent().getStringExtra("roomId");
+        String playerId = getIntent().getStringExtra("playerId");
+        String serverUrl = getIntent().getStringExtra("serverUrl");
+
+        findViewById(R.id.btnBackToRoom).setOnClickListener(v -> {
+            Intent intent = new Intent(this, OnlineLobbyActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            intent.putExtra("roomId", roomId);
+            intent.putExtra("playerId", playerId);
+            intent.putExtra("serverUrl", serverUrl);
+            startActivity(intent);
+            finish();
+        });
+
         findViewById(R.id.btnBackToLobby).setOnClickListener(v -> {
             Intent intent = new Intent(this, OnlineLobbyActivity.class);
             intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);

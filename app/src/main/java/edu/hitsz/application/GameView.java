@@ -80,8 +80,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private boolean showQuickMsgPanel = false;
     private static final String[] QUICK_MESSAGES = {"加油", "厉害", "再来", "小心", "666"};
     private static final float QM_BTN_SIZE = 60;
-    private static final float QM_PANEL_X = 460;
+    private static final float QM_PANEL_X = 440;
     private static final float QM_TOGGLE_Y = 50;
+    private static final float QM_TOGGLE_W = 60;
+    private static final float QM_TOGGLE_H = 44;
 
     // ---------- Paint ----------
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -202,40 +204,46 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private void update() {
         time += timeInterval;
         updateBackground(); // 更新背景滚动
-        difficulty.increaseDifficulty();
-        enemyMaxNumber         = difficulty.getEnemyMaxNumber();
-        cycleDuration          = difficulty.getCycleDuration();
-        heroShootCycleDuration = difficulty.getHeroShootCycleDuration();
 
-        // 新周期 - 生成敌机
-        cycleTime += timeInterval;
-        if (cycleTime >= cycleDuration) {
-            cycleTime %= cycleDuration;
+        // 联机模式下玩家死亡后冻结游戏逻辑，只保留同步
+        if (isOnline && !myAlive) {
+            // 跳过所有游戏逻辑，直接进入联机同步
+        } else {
+            difficulty.increaseDifficulty();
+            enemyMaxNumber         = difficulty.getEnemyMaxNumber();
+            cycleDuration          = difficulty.getCycleDuration();
+            heroShootCycleDuration = difficulty.getHeroShootCycleDuration();
 
-            if (!bossSpawned && difficulty.shouldGenerateBoss(score)) {
-                AbstractAircraft boss = AircraftFactory.createBossAircraft();
-                enemyAircrafts.add(boss);
-                bombManager.registerObserver(boss);
-                bossSpawned = true;
-                difficulty.updateBossThreshold();
-                soundManager.startBossMusic();
+            // 新周期 - 生成敌机
+            cycleTime += timeInterval;
+            if (cycleTime >= cycleDuration) {
+                cycleTime %= cycleDuration;
+
+                if (!bossSpawned && difficulty.shouldGenerateBoss(score)) {
+                    AbstractAircraft boss = AircraftFactory.createBossAircraft();
+                    enemyAircrafts.add(boss);
+                    bombManager.registerObserver(boss);
+                    bossSpawned = true;
+                    difficulty.updateBossThreshold();
+                    soundManager.startBossMusic();
+                }
+
+                if (enemyAircrafts.size() < enemyMaxNumber && !isBossAlive()) {
+                    AbstractAircraft enemy = AircraftFactory.createRandomAircraft(
+                            difficulty.getEliteEnemyProbability(),
+                            difficulty.getEnemyAttributeMultiplier());
+                    enemyAircrafts.add(enemy);
+                    bombManager.registerObserver(enemy);
+                }
             }
 
-            if (enemyAircrafts.size() < enemyMaxNumber && !isBossAlive()) {
-                AbstractAircraft enemy = AircraftFactory.createRandomAircraft(
-                        difficulty.getEliteEnemyProbability(),
-                        difficulty.getEnemyAttributeMultiplier());
-                enemyAircrafts.add(enemy);
-                bombManager.registerObserver(enemy);
-            }
+            shootAction();
+            bulletsMoveAction();
+            aircraftsMoveAction();
+            propsMoveAction();
+            crashCheckAction();
+            postProcessAction();
         }
-
-        shootAction();
-        bulletsMoveAction();
-        aircraftsMoveAction();
-        propsMoveAction();
-        crashCheckAction();
-        postProcessAction();
 
         // 游戏结束判定
         if (heroAircraft.getHp() <= 0 && myAlive) {
@@ -325,7 +333,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             }
         }
         heroShootCycle += timeInterval;
-        if (heroShootCycle >= heroShootCycleDuration) {
+        if (heroShootCycle >= heroShootCycleDuration && myAlive) {
             heroShootCycle %= heroShootCycleDuration;
             heroBullets.addAll(heroAircraft.shoot());
             soundManager.playBulletShootSound();
@@ -354,7 +362,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                 b.vanish();
             }
         }
-        // 英雄子弹 -> 敌机
+        // 英雄子弹 -> 敌机（死亡后不再计分）
         for (BaseBullet b : heroBullets) {
             if (b.notValid()) continue;
             for (AbstractAircraft enemy : enemyAircrafts) {
@@ -362,26 +370,28 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                 if (enemy.crash(b)) {
                     enemy.decreaseHp(b.getPower());
                     b.vanish();
-                    soundManager.playBulletHitSound();
-                    if (enemy.notValid()) {
-                        soundManager.playBombExplosionSound();
-                        if (enemy instanceof BossEnemy) {
-                            score += 100;
-                            for (int i = 0; i < 3; i++) {
-                                if (Math.random() < 0.7) generateProp(enemy.getLocationX(), enemy.getLocationY());
+                    if (myAlive) {
+                        soundManager.playBulletHitSound();
+                        if (enemy.notValid()) {
+                            soundManager.playBombExplosionSound();
+                            if (enemy instanceof BossEnemy) {
+                                score += 100;
+                                for (int i = 0; i < 3; i++) {
+                                    if (Math.random() < 0.7) generateProp(enemy.getLocationX(), enemy.getLocationY());
+                                }
+                            } else if (enemy instanceof SuperEliteEnemy) {
+                                score += 50;
+                                if (Math.random() < 0.8) generateProp(enemy.getLocationX(), enemy.getLocationY());
+                            } else if (enemy instanceof EliteEnemy) {
+                                score += 20;
+                                if (Math.random() < 0.3) generateProp(enemy.getLocationX(), enemy.getLocationY());
+                            } else {
+                                score += 10;
                             }
-                        } else if (enemy instanceof SuperEliteEnemy) {
-                            score += 50;
-                            if (Math.random() < 0.8) generateProp(enemy.getLocationX(), enemy.getLocationY());
-                        } else if (enemy instanceof EliteEnemy) {
-                            score += 20;
-                            if (Math.random() < 0.3) generateProp(enemy.getLocationX(), enemy.getLocationY());
-                        } else {
-                            score += 10;
                         }
                     }
                 }
-                if (enemy.crash(heroAircraft) || heroAircraft.crash(enemy)) {
+                if (myAlive && (enemy.crash(heroAircraft) || heroAircraft.crash(enemy))) {
                     enemy.vanish();
                     heroAircraft.decreaseHp(Integer.MAX_VALUE);
                 }
@@ -563,19 +573,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paint.setTextAlign(Paint.Align.RIGHT);
         canvas.drawText("VS: " + opponentScore, LOGIC_WIDTH - 10, 35, paint);
 
-        // 对手血量条
-        float barX = LOGIC_WIDTH - 120;
-        float barY = 50;
-        float barWidth = 110;
-        float barHeight = 12;
-        paint.setColor(0x44FFFFFF);
-        canvas.drawRect(barX, barY, barX + barWidth, barY + barHeight, paint);
-        float hpRatio = Math.max(0, Math.min(1, opponentHp / 1000f));
+        // 对手血量 - 数字显示
+        paint.setTextSize(24);
         paint.setColor(opponentAlive ? 0xFF4488FF : 0xFFFF4444);
-        canvas.drawRect(barX, barY, barX + barWidth * hpRatio, barY + barHeight, paint);
-
-        paint.setTextSize(14);
-        canvas.drawText(opponentAlive ? "HP:" + opponentHp : "已阵亡", LOGIC_WIDTH - 10, 80, paint);
+        canvas.drawText(opponentAlive ? "HP: " + opponentHp : "已阵亡", LOGIC_WIDTH - 10, 62, paint);
         paint.setTextAlign(Paint.Align.LEFT);
     }
 
@@ -611,12 +612,12 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
      * 绘制快捷消息切换按钮
      */
     private void drawQuickMsgToggle(Canvas canvas) {
-        paint.setColor(showQuickMsgPanel ? 0xCC4488FF : 0x664488FF);
-        canvas.drawRoundRect(QM_PANEL_X, QM_TOGGLE_Y, QM_PANEL_X + 42, QM_TOGGLE_Y + 32, 8, 8, paint);
+        paint.setColor(showQuickMsgPanel ? 0xCC4488FF : 0x884488FF);
+        canvas.drawRoundRect(QM_PANEL_X, QM_TOGGLE_Y, QM_PANEL_X + QM_TOGGLE_W, QM_TOGGLE_Y + QM_TOGGLE_H, 10, 10, paint);
         paint.setColor(Color.WHITE);
-        paint.setTextSize(14);
+        paint.setTextSize(20);
         paint.setTextAlign(Paint.Align.CENTER);
-        canvas.drawText("💬", QM_PANEL_X + 21, QM_TOGGLE_Y + 23, paint);
+        canvas.drawText("💬", QM_PANEL_X + QM_TOGGLE_W / 2f, QM_TOGGLE_Y + QM_TOGGLE_H / 2f + 7, paint);
         paint.setTextAlign(Paint.Align.LEFT);
     }
 
@@ -646,8 +647,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
         if (isOnline && event.getAction() == MotionEvent.ACTION_DOWN) {
             // 检测快捷消息切换按钮
-            if (lx >= QM_PANEL_X && lx <= QM_PANEL_X + 42 &&
-                    ly >= QM_TOGGLE_Y && ly <= QM_TOGGLE_Y + 32) {
+            if (lx >= QM_PANEL_X && lx <= QM_PANEL_X + QM_TOGGLE_W &&
+                    ly >= QM_TOGGLE_Y && ly <= QM_TOGGLE_Y + QM_TOGGLE_H) {
                 showQuickMsgPanel = !showQuickMsgPanel;
                 return true;
             }
