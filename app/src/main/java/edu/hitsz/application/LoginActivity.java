@@ -1,11 +1,14 @@
 package edu.hitsz.application;
 
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.widget.EditText;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+
+import org.json.JSONObject;
 
 import edu.hitsz.R;
 import edu.hitsz.network.ApiClient;
@@ -31,12 +34,10 @@ public class LoginActivity extends AppCompatActivity {
         etNickname = findViewById(R.id.etNickname);
         etPassword = findViewById(R.id.etPassword);
 
-        // 恢复上次保存的服务器地址
         SharedPreferences prefs = getSharedPreferences(PREF_NAME, MODE_PRIVATE);
         String savedUrl = prefs.getString(KEY_SERVER_URL, "http://10.0.2.2:8888");
         etServerUrl.setText(savedUrl);
 
-        // 恢复上次保存的昵称
         String savedNickname = prefs.getString(KEY_NICKNAME, "");
         if (!savedNickname.isEmpty()) {
             etNickname.setText(savedNickname);
@@ -65,12 +66,18 @@ public class LoginActivity extends AppCompatActivity {
                 String response = ApiClient.post("/api/account/login", body);
 
                 if (ApiClient.isSuccess(response)) {
-                    String playerId = ApiClient.extractString(response, "id");
-                    saveLoginInfo(serverUrl, playerId, nickname);
+                    String playerId = extractPlayerId(response);
+                    String playerNickname = extractPlayerNickname(response, nickname);
+                    if (playerId == null || playerId.isEmpty()) {
+                        runOnUiThread(() -> Toast.makeText(this,
+                                "登录失败: 服务器返回的玩家信息不完整", Toast.LENGTH_SHORT).show());
+                        return;
+                    }
+
+                    saveLoginInfo(serverUrl, playerId, playerNickname);
                     runOnUiThread(() -> {
                         Toast.makeText(this, "登录成功", Toast.LENGTH_SHORT).show();
-                        setResult(RESULT_OK);
-                        finish();
+                        launchOnlineLobby();
                     });
                 } else {
                     String error = ApiClient.extractString(response, "error");
@@ -102,12 +109,18 @@ public class LoginActivity extends AppCompatActivity {
                 String response = ApiClient.post("/api/account/register", body);
 
                 if (ApiClient.isSuccess(response)) {
-                    String playerId = ApiClient.extractString(response, "id");
-                    saveLoginInfo(serverUrl, playerId, nickname);
+                    String playerId = extractPlayerId(response);
+                    String playerNickname = extractPlayerNickname(response, nickname);
+                    if (playerId == null || playerId.isEmpty()) {
+                        runOnUiThread(() -> Toast.makeText(this,
+                                "注册失败: 服务器返回的玩家信息不完整", Toast.LENGTH_SHORT).show());
+                        return;
+                    }
+
+                    saveLoginInfo(serverUrl, playerId, playerNickname);
                     runOnUiThread(() -> {
                         Toast.makeText(this, "注册成功，已自动登录", Toast.LENGTH_SHORT).show();
-                        setResult(RESULT_OK);
-                        finish();
+                        launchOnlineLobby();
                     });
                 } else {
                     String error = ApiClient.extractString(response, "error");
@@ -119,6 +132,31 @@ public class LoginActivity extends AppCompatActivity {
                         Toast.makeText(this, "网络错误: " + e.getMessage(), Toast.LENGTH_SHORT).show());
             }
         }).start();
+    }
+
+    private String extractPlayerId(String response) throws Exception {
+        JSONObject root = new JSONObject(response);
+        JSONObject player = root.optJSONObject("player");
+        if (player == null) {
+            return null;
+        }
+        return player.optString("id", null);
+    }
+
+    private String extractPlayerNickname(String response, String fallbackNickname) throws Exception {
+        JSONObject root = new JSONObject(response);
+        JSONObject player = root.optJSONObject("player");
+        if (player == null) {
+            return fallbackNickname;
+        }
+        String playerNickname = player.optString("nickname", fallbackNickname);
+        return playerNickname == null || playerNickname.isEmpty() ? fallbackNickname : playerNickname;
+    }
+
+    private void launchOnlineLobby() {
+        Intent intent = new Intent(this, OnlineLobbyActivity.class);
+        startActivity(intent);
+        finish();
     }
 
     private void saveLoginInfo(String serverUrl, String playerId, String nickname) {
