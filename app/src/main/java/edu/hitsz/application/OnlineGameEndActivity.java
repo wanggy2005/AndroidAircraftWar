@@ -3,10 +3,12 @@ package edu.hitsz.application;
 import android.content.Intent;
 import android.os.Bundle;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
 import edu.hitsz.R;
+import edu.hitsz.network.ApiClient;
 
 /**
  * 联机对战结算页面
@@ -73,13 +75,26 @@ public class OnlineGameEndActivity extends AppCompatActivity {
         String serverUrl = getIntent().getStringExtra("serverUrl");
 
         findViewById(R.id.btnBackToRoom).setOnClickListener(v -> {
-            Intent intent = new Intent(this, OnlineLobbyActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
-            intent.putExtra("roomId", roomId);
-            intent.putExtra("playerId", playerId);
-            intent.putExtra("serverUrl", serverUrl);
-            startActivity(intent);
-            finish();
+            v.setEnabled(false);
+            // 先调用服务器接口重置房间，再跳转到大厅
+            new Thread(() -> {
+                try {
+                    if (serverUrl != null) ApiClient.setBaseUrl(serverUrl);
+                    String body = "{\"playerId\":\"" + playerId + "\",\"roomId\":\"" + roomId + "\"}";
+                    ApiClient.post("/api/room/return", body);
+                    // 无论成功与否都跳转（另一个玩家可能已经重置了）
+                } catch (Exception ignored) {}
+                runOnUiThread(() -> {
+                    Intent intent = new Intent(this, OnlineLobbyActivity.class);
+                    intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+                    intent.putExtra("returnToRoom", true);
+                    intent.putExtra("roomId", roomId);
+                    intent.putExtra("playerId", playerId);
+                    intent.putExtra("serverUrl", serverUrl);
+                    startActivity(intent);
+                    finish();
+                });
+            }).start();
         });
 
         findViewById(R.id.btnBackToLobby).setOnClickListener(v -> {

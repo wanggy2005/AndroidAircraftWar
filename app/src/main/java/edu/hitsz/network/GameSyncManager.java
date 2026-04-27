@@ -1,7 +1,5 @@
 package edu.hitsz.network;
 
-import android.util.Log;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -13,7 +11,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class GameSyncManager {
 
-    private static final String TAG = "GameSyncManager";
     private static final long SYNC_INTERVAL_MS = 100; // 100ms 轮询间隔
 
     private final String playerId;
@@ -133,18 +130,15 @@ public class GameSyncManager {
             } catch (InterruptedException e) {
                 break;
             } catch (Exception e) {
-                Log.w(TAG, "Sync error: " + e.getMessage());
                 try { Thread.sleep(500); } catch (InterruptedException ex) { break; }
             }
         }
     }
 
     private void parseMessages(String json) {
-        // 简单解析 {"messages":[{"message":"xxx"}, ...]}
         String messagesArray = json;
         int idx = messagesArray.indexOf("[");
         if (idx < 0) return;
-        // 寻找每个 "message":"xxx"
         String search = "\"message\":\"";
         int pos = 0;
         while (true) {

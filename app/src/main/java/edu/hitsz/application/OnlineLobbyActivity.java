@@ -101,14 +101,15 @@ public class OnlineLobbyActivity extends AppCompatActivity {
         findViewById(R.id.btnBackToMenu).setOnClickListener(v -> finish());
         findViewById(R.id.btnLogout).setOnClickListener(v -> logout());
 
-        // 从结算页面“回到房间”跳转过来，自动加入房间
+        // 从结算页面“回到房间”跳转过来，直接查询房间信息并显示
+        boolean returnToRoom = getIntent().getBooleanExtra("returnToRoom", false);
         String returnRoomId = getIntent().getStringExtra("roomId");
         String returnServerUrl = getIntent().getStringExtra("serverUrl");
-        if (returnRoomId != null && !returnRoomId.isEmpty()) {
+        if (returnToRoom && returnRoomId != null && !returnRoomId.isEmpty()) {
             if (returnServerUrl != null) ApiClient.setBaseUrl(returnServerUrl);
-            etRoomId.setText(returnRoomId);
-            // 延迟自动加入房间
-            handler.postDelayed(this::joinRoom, 500);
+            currentRoomId = returnRoomId;
+            // 查询房间信息，确定身份并显示房间状态
+            handler.postDelayed(() -> returnToExistingRoom(returnRoomId), 300);
         }
     }
 
@@ -288,6 +289,36 @@ public class OnlineLobbyActivity extends AppCompatActivity {
     private void stopPolling() {
         polling = false;
         if (pollRunnable != null) handler.removeCallbacks(pollRunnable);
+    }
+
+    /**
+     * 返回已存在的房间（游戏结束后回到房间）
+     * 不需要重新join，因为服务器resetForNewGame保留了玩家信息
+     */
+    private void returnToExistingRoom(String roomId) {
+        new Thread(() -> {
+            try {
+                String response = ApiClient.get("/api/room/info?roomId=" + roomId);
+                if (ApiClient.isSuccess(response)) {
+                    String hostId = ApiClient.extractString(response, "hostId");
+                    String difficulty = ApiClient.extractString(response, "difficulty");
+                    isHost = playerId.equals(hostId);
+                    runOnUiThread(() -> {
+                        showRoomStatus(difficulty != null ? difficulty : "未知");
+                        Toast.makeText(this, "已回到房间: " + roomId, Toast.LENGTH_SHORT).show();
+                    });
+                    startPolling();
+                } else {
+                    runOnUiThread(() -> {
+                        Toast.makeText(this, "房间不存在，请重新创建", Toast.LENGTH_SHORT).show();
+                    });
+                }
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "网络错误: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
+            }
+        }).start();
     }
 
     @Override

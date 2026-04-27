@@ -174,7 +174,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     public void run() {
         long lastTime = System.nanoTime();
         final double nsPerTick = 1_000_000_000.0 / 60.0; // 渲染60 FPS
-        final double gameSpeedFactor = 0.5; // 游戏速度因子，0.6表示降低为60%速度
+        final double gameSpeedFactor = 0.5;
         double delta = 0;
 
         while (running) {
@@ -204,9 +204,8 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private void update() {
         time += timeInterval;
 
-        // 联机模式下玩家死亡后完全冻结游戏（含背景），只保留同步
         if (isOnline && !myAlive) {
-            // 跳过所有游戏逻辑，直接进入联机同步
+            // 玩家死亡，冻结游戏逻辑，只保留联机同步
         } else {
             updateBackground(); // 更新背景滚动
             difficulty.increaseDifficulty();
@@ -243,7 +242,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             propsMoveAction();
             crashCheckAction();
             postProcessAction();
-        } // end of alive game logic
+        }
 
         // 游戏结束判定
         if (heroAircraft.getHp() <= 0 && myAlive) {
@@ -460,7 +459,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                 drawQuickMessage(canvas);
                 drawQuickMsgToggle(canvas);
                 if (showQuickMsgPanel) drawQuickMsgPanel(canvas);
-                // 死亡等待对手的遮罩提示
                 if (!myAlive && opponentAlive) {
                     drawDeathOverlay(canvas);
                 }
@@ -471,39 +469,22 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         }
     }
 
-    // 背景绘制优化 - 使用双缓冲思路
-    private Bitmap bgBuffer1;
-    private Bitmap bgBuffer2;
-    private int lastBgOffset = -1;
-
     private void drawBackground(Canvas canvas) {
         if (bgImage == null) {
             canvas.drawColor(Color.BLACK);
             return;
         }
-        // 计算背景滚动位置
         int bgHeight = bgImage.getHeight();
         int offset = backGroundTop % bgHeight;
-
-        // 只有当offset变化时才重新计算位置
-        if (offset != lastBgOffset) {
-            lastBgOffset = offset;
-        }
-
-        // 绘制两张背景图实现无缝滚动
         canvas.drawBitmap(bgImage, 0, offset - bgHeight, null);
         canvas.drawBitmap(bgImage, 0, offset, null);
     }
 
-    /**
-     * 更新背景滚动位置，在update中调用保证流畅性
-     */
     private void updateBackground() {
-        backGroundTop += 2; // 每帧滚动2像素
+        backGroundTop += 2;
     }
 
-    /** 所有游戏精灵统一缩放比例（相对于原图）*/
-    private static final float SPRITE_SCALE = 0.45f;  // 飞机贴图缩放比例（稍微调小）
+    private static final float SPRITE_SCALE = 0.45f;
 
     private void drawObjects(Canvas canvas, List<? extends AbstractFlyingObject> objects) {
         for (AbstractFlyingObject obj : objects) {
@@ -519,7 +500,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         drawScaled(canvas, bmp, heroAircraft.getLocationX(), heroAircraft.getLocationY());
     }
 
-    /** 以逻辑坐标 (cx, cy) 为中心，按 SPRITE_SCALE 缩放绘制 Bitmap */
     private void drawScaled(Canvas canvas, Bitmap bmp, float cx, float cy) {
         float w = bmp.getWidth()  * SPRITE_SCALE;
         float h = bmp.getHeight() * SPRITE_SCALE;
@@ -548,7 +528,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
     private void drawOpponent(Canvas canvas) {
         Bitmap bmp = ImageManager.HERO_IMAGE;
         if (bmp == null || !opponentAlive) return;
-        // 使用蓝色滤镜绘制对手飞机
         Paint opPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         opPaint.setAlpha(160); // 半透明
         opPaint.setColorFilter(new android.graphics.PorterDuffColorFilter(
@@ -559,7 +538,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                 opponentX - w / 2f, opponentY - h / 2f,
                 opponentX + w / 2f, opponentY + h / 2f);
         canvas.drawBitmap(bmp, null, dst, opPaint);
-        // 绘制对手标识
         paint.setColor(0xFF4488FF);
         paint.setTextSize(16);
         paint.setTextAlign(Paint.Align.CENTER);
@@ -577,7 +555,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paint.setTextAlign(Paint.Align.RIGHT);
         canvas.drawText("VS: " + opponentScore, LOGIC_WIDTH - 10, 35, paint);
 
-        // 对手血量 - 数字显示
         paint.setTextSize(24);
         paint.setColor(opponentAlive ? 0xFF4488FF : 0xFFFF4444);
         canvas.drawText(opponentAlive ? "HP: " + opponentHp : "已阵亡", LOGIC_WIDTH - 10, 62, paint);
@@ -588,29 +565,24 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
      * 绘制死亡后等待对手的遮罩提示
      */
     private void drawDeathOverlay(Canvas canvas) {
-        // 半透明黑色遮罩
         paint.setColor(0xAA000000);
         canvas.drawRect(0, 0, LOGIC_WIDTH, LOGIC_HEIGHT, paint);
 
-        // “游戏结束” 标题
         paint.setColor(0xFFFF6B6B);
         paint.setTextSize(42);
         paint.setTypeface(Typeface.DEFAULT_BOLD);
         paint.setTextAlign(Paint.Align.CENTER);
         canvas.drawText("游戏结束", LOGIC_WIDTH / 2f, LOGIC_HEIGHT / 2f - 40, paint);
 
-        // “请等待对手...” 副标题
         paint.setColor(0xCCFFFFFF);
         paint.setTextSize(24);
         paint.setTypeface(Typeface.DEFAULT);
         canvas.drawText("请等待对手结束游戏...", LOGIC_WIDTH / 2f, LOGIC_HEIGHT / 2f + 10, paint);
 
-        // 最终分数显示
         paint.setColor(0xAAFFFFFF);
         paint.setTextSize(20);
         canvas.drawText("我的得分: " + score, LOGIC_WIDTH / 2f, LOGIC_HEIGHT / 2f + 55, paint);
 
-        // 动态等待动画（跳动的点）
         long dots = (System.currentTimeMillis() / 500) % 4;
         String dotStr = "";
         for (int i = 0; i < dots; i++) dotStr += " ●";
@@ -632,7 +604,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             quickMsgDisplay = null;
             return;
         }
-        // 气泡背景
         float alpha = 1f - (float) elapsed / QUICK_MSG_DURATION;
         paint.setColor(0xFF4488FF);
         paint.setAlpha((int) (200 * alpha));
@@ -640,7 +611,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         float bx = (LOGIC_WIDTH - textWidth) / 2f - 12;
         float by = 120;
         canvas.drawRoundRect(bx, by, bx + textWidth + 24, by + 40, 10, 10, paint);
-        // 文字
         paint.setColor(Color.WHITE);
         paint.setAlpha((int) (255 * alpha));
         paint.setTextSize(22);
@@ -688,13 +658,11 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         float ly = event.getY() / scaleY;
 
         if (isOnline && event.getAction() == MotionEvent.ACTION_DOWN) {
-            // 检测快捷消息切换按钮
             if (lx >= QM_PANEL_X && lx <= QM_PANEL_X + QM_TOGGLE_W &&
                     ly >= QM_TOGGLE_Y && ly <= QM_TOGGLE_Y + QM_TOGGLE_H) {
                 showQuickMsgPanel = !showQuickMsgPanel;
                 return true;
             }
-            // 检测快捷消息面板点击
             if (showQuickMsgPanel) {
                 float startY = QM_TOGGLE_Y + 40;
                 for (int i = 0; i < QUICK_MESSAGES.length; i++) {
