@@ -203,12 +203,12 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
 
     private void update() {
         time += timeInterval;
-        updateBackground(); // 更新背景滚动
 
-        // 联机模式下玩家死亡后冻结游戏逻辑，只保留同步
+        // 联机模式下玩家死亡后完全冻结游戏（含背景），只保留同步
         if (isOnline && !myAlive) {
             // 跳过所有游戏逻辑，直接进入联机同步
         } else {
+            updateBackground(); // 更新背景滚动
             difficulty.increaseDifficulty();
             enemyMaxNumber         = difficulty.getEnemyMaxNumber();
             cycleDuration          = difficulty.getCycleDuration();
@@ -243,7 +243,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
             propsMoveAction();
             crashCheckAction();
             postProcessAction();
-        }
+        } // end of alive game logic
 
         // 游戏结束判定
         if (heroAircraft.getHp() <= 0 && myAlive) {
@@ -460,6 +460,10 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
                 drawQuickMessage(canvas);
                 drawQuickMsgToggle(canvas);
                 if (showQuickMsgPanel) drawQuickMsgPanel(canvas);
+                // 死亡等待对手的遮罩提示
+                if (!myAlive && opponentAlive) {
+                    drawDeathOverlay(canvas);
+                }
             }
             canvas.restore();
         } finally {
@@ -578,6 +582,44 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback, Run
         paint.setColor(opponentAlive ? 0xFF4488FF : 0xFFFF4444);
         canvas.drawText(opponentAlive ? "HP: " + opponentHp : "已阵亡", LOGIC_WIDTH - 10, 62, paint);
         paint.setTextAlign(Paint.Align.LEFT);
+    }
+
+    /**
+     * 绘制死亡后等待对手的遮罩提示
+     */
+    private void drawDeathOverlay(Canvas canvas) {
+        // 半透明黑色遮罩
+        paint.setColor(0xAA000000);
+        canvas.drawRect(0, 0, LOGIC_WIDTH, LOGIC_HEIGHT, paint);
+
+        // “游戏结束” 标题
+        paint.setColor(0xFFFF6B6B);
+        paint.setTextSize(42);
+        paint.setTypeface(Typeface.DEFAULT_BOLD);
+        paint.setTextAlign(Paint.Align.CENTER);
+        canvas.drawText("游戏结束", LOGIC_WIDTH / 2f, LOGIC_HEIGHT / 2f - 40, paint);
+
+        // “请等待对手...” 副标题
+        paint.setColor(0xCCFFFFFF);
+        paint.setTextSize(24);
+        paint.setTypeface(Typeface.DEFAULT);
+        canvas.drawText("请等待对手结束游戏...", LOGIC_WIDTH / 2f, LOGIC_HEIGHT / 2f + 10, paint);
+
+        // 最终分数显示
+        paint.setColor(0xAAFFFFFF);
+        paint.setTextSize(20);
+        canvas.drawText("我的得分: " + score, LOGIC_WIDTH / 2f, LOGIC_HEIGHT / 2f + 55, paint);
+
+        // 动态等待动画（跳动的点）
+        long dots = (System.currentTimeMillis() / 500) % 4;
+        String dotStr = "";
+        for (int i = 0; i < dots; i++) dotStr += " ●";
+        paint.setColor(0xFF4488FF);
+        paint.setTextSize(18);
+        canvas.drawText(dotStr, LOGIC_WIDTH / 2f, LOGIC_HEIGHT / 2f + 90, paint);
+
+        paint.setTextAlign(Paint.Align.LEFT);
+        paint.setTypeface(Typeface.DEFAULT_BOLD);
     }
 
     /**
