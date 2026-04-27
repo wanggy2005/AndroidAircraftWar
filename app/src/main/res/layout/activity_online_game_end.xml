@@ -192,6 +192,25 @@
 
         <!-- 操作按钮 -->
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnViewLeaderboard"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/button_primary_bg"
+            android:elevation="4dp"
+            android:stateListAnimator="@animator/button_press_animator"
+            android:text="查看排行榜"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            app:backgroundTint="@null"
+            app:cornerRadius="12dp"
+            app:icon="@android:drawable/ic_menu_sort_by_size"
+            app:iconGravity="textStart"
+            app:iconPadding="8dp"
+            app:iconTint="@color/white" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnBackToRoom"
             android:layout_width="match_parent"
             android:layout_height="52dp"

@@ -10,9 +10,6 @@ import androidx.appcompat.app.AppCompatActivity;
 import edu.hitsz.R;
 import edu.hitsz.network.ApiClient;
 
-/**
- * 联机对战结算页面
- */
 public class OnlineGameEndActivity extends AppCompatActivity {
 
     public static final String EXTRA_MY_SCORE = "myScore";
@@ -21,19 +18,30 @@ public class OnlineGameEndActivity extends AppCompatActivity {
     public static final String EXTRA_MY_TIME = "myTime";
     public static final String EXTRA_OPPONENT_TIME = "opponentTime";
 
+    private String roomId;
+    private String playerId;
+    private String serverUrl;
+    private String difficulty;
+    private int myScore;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_online_game_end);
 
-        // 获取数据
-        int myScore = getIntent().getIntExtra(EXTRA_MY_SCORE, 0);
+        myScore = getIntent().getIntExtra(EXTRA_MY_SCORE, 0);
         int opponentScore = getIntent().getIntExtra(EXTRA_OPPONENT_SCORE, 0);
-        String difficulty = getIntent().getStringExtra(EXTRA_DIFFICULTY);
+        difficulty = getIntent().getStringExtra(EXTRA_DIFFICULTY);
         long myTime = getIntent().getLongExtra(EXTRA_MY_TIME, 0);
         long opponentTime = getIntent().getLongExtra(EXTRA_OPPONENT_TIME, 0);
+        roomId = getIntent().getStringExtra("roomId");
+        playerId = getIntent().getStringExtra("playerId");
+        serverUrl = getIntent().getStringExtra("serverUrl");
 
-        // 绑定视图
+        if (serverUrl != null) {
+            ApiClient.setBaseUrl(serverUrl);
+        }
+
         TextView tvResult = findViewById(R.id.tvResult);
         TextView tvMyScore = findViewById(R.id.tvMyScore);
         TextView tvOpponentScore = findViewById(R.id.tvOpponentScore);
@@ -42,48 +50,41 @@ public class OnlineGameEndActivity extends AppCompatActivity {
         TextView tvDifficulty = findViewById(R.id.tvDifficulty);
         TextView tvScoreDiff = findViewById(R.id.tvScoreDiff);
 
-        // 设置分数（带动画）
         animateScore(tvMyScore, myScore);
         animateScore(tvOpponentScore, opponentScore);
-
-        // 存活时间
         tvMyTime.setText("存活: " + formatTime(myTime));
         tvOpponentTime.setText("存活: " + formatTime(opponentTime));
-
-        // 难度
         tvDifficulty.setText("难度: " + (difficulty != null ? difficulty : "未知"));
 
-        // 分差
         int diff = Math.abs(myScore - opponentScore);
         tvScoreDiff.setText("分差: " + diff);
 
-        // 胜负判定
         if (myScore > opponentScore) {
             tvResult.setText("胜利!");
-            tvResult.setTextColor(0xFFFFD700); // 金色
+            tvResult.setTextColor(0xFFFFD700);
         } else if (myScore < opponentScore) {
             tvResult.setText("失败");
-            tvResult.setTextColor(0xFFFF4444); // 红色
+            tvResult.setTextColor(0xFFFF4444);
         } else {
             tvResult.setText("平局");
-            tvResult.setTextColor(0xFFB8B8D1); // 灰色
+            tvResult.setTextColor(0xFFB8B8D1);
         }
 
-        // 按钮事件
-        String roomId = getIntent().getStringExtra("roomId");
-        String playerId = getIntent().getStringExtra("playerId");
-        String serverUrl = getIntent().getStringExtra("serverUrl");
+        submitScoreIfNeeded();
+
+        findViewById(R.id.btnViewLeaderboard).setOnClickListener(v -> openLeaderboard());
 
         findViewById(R.id.btnBackToRoom).setOnClickListener(v -> {
             v.setEnabled(false);
-            // 先调用服务器接口重置房间，再跳转到大厅
             new Thread(() -> {
                 try {
-                    if (serverUrl != null) ApiClient.setBaseUrl(serverUrl);
+                    if (serverUrl != null) {
+                        ApiClient.setBaseUrl(serverUrl);
+                    }
                     String body = "{\"playerId\":\"" + playerId + "\",\"roomId\":\"" + roomId + "\"}";
                     ApiClient.post("/api/room/return", body);
-                    // 无论成功与否都跳转（另一个玩家可能已经重置了）
-                } catch (Exception ignored) {}
+                } catch (Exception ignored) {
+                }
                 runOnUiThread(() -> {
                     Intent intent = new Intent(this, OnlineLobbyActivity.class);
                     intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
@@ -105,11 +106,37 @@ public class OnlineGameEndActivity extends AppCompatActivity {
         });
 
         findViewById(R.id.btnBackToMenu).setOnClickListener(v -> {
-            Intent intent = new Intent(this, MainActivity.class);
-            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+            Intent intent = new Intent(this, OnlineLobbyActivity.class);
+            intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             startActivity(intent);
             finish();
         });
+    }
+
+    private void submitScoreIfNeeded() {
+        if (roomId == null || playerId == null || difficulty == null) {
+            return;
+        }
+        new Thread(() -> {
+            try {
+                String body = "{\"playerId\":\"" + playerId + "\",\"roomId\":\"" + roomId +
+                        "\",\"difficulty\":\"" + difficulty + "\",\"score\":" + myScore + "}";
+                ApiClient.post("/api/leaderboard/submit", body);
+            } catch (Exception e) {
+                runOnUiThread(() -> Toast.makeText(this, "在线排行榜提交失败: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            }
+        }).start();
+    }
+
+    private void openLeaderboard() {
+        Intent intent = new Intent(this, OnlineLeaderboardActivity.class);
+        intent.putExtra(OnlineLeaderboardActivity.EXTRA_DIFFICULTY, difficulty);
+        intent.putExtra(OnlineLeaderboardActivity.EXTRA_ROOM_ID, roomId);
+        intent.putExtra(OnlineLeaderboardActivity.EXTRA_PLAYER_ID, playerId);
+        intent.putExtra(OnlineLeaderboardActivity.EXTRA_SERVER_URL, serverUrl);
+        intent.putExtra(OnlineLeaderboardActivity.EXTRA_RETURN_TO_ROOM, true);
+        intent.putExtra(OnlineLeaderboardActivity.EXTRA_BACK_TO_ONLINE_HOME, true);
+        startActivity(intent);
     }
 
     private void animateScore(final TextView textView, final int targetScore) {
@@ -135,9 +162,8 @@ public class OnlineGameEndActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        // 返回主菜单
-        Intent intent = new Intent(this, MainActivity.class);
-        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+        Intent intent = new Intent(this, OnlineLobbyActivity.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         startActivity(intent);
         finish();
     }

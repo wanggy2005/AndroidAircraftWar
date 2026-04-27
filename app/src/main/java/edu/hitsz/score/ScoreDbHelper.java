@@ -9,6 +9,8 @@ import android.database.sqlite.SQLiteOpenHelper;
 import java.util.ArrayList;
 import java.util.List;
 
+import edu.hitsz.application.LoginActivity;
+
 public class ScoreDbHelper extends SQLiteOpenHelper {
 
     private static final String DB_NAME = "score_rank.db";
@@ -20,8 +22,11 @@ public class ScoreDbHelper extends SQLiteOpenHelper {
     public static final String COL_SCORE = "score";
     public static final String COL_DIFFICULTY = "difficulty";
 
+    private final Context context;
+
     public ScoreDbHelper(Context context) {
         super(context, DB_NAME, null, DB_VERSION);
+        this.context = context.getApplicationContext();
     }
 
     @Override
@@ -64,6 +69,9 @@ public class ScoreDbHelper extends SQLiteOpenHelper {
                 COL_SCORE + " DESC"
         );
 
+        String realNickname = context.getSharedPreferences(LoginActivity.PREF_NAME, Context.MODE_PRIVATE)
+                .getString(LoginActivity.KEY_NICKNAME, nameFallback());
+
         if (cursor != null) {
             try {
                 int idIndex = cursor.getColumnIndexOrThrow(COL_ID);
@@ -76,6 +84,9 @@ public class ScoreDbHelper extends SQLiteOpenHelper {
                     String name = cursor.getString(nameIndex);
                     int score = cursor.getInt(scoreIndex);
                     String itemDifficulty = cursor.getString(difficultyIndex);
+                    if (name != null && "Player".equalsIgnoreCase(name)) {
+                        name = realNickname;
+                    }
                     result.add(new ScoreItem(id, name, score, itemDifficulty));
                 }
             } finally {
@@ -89,5 +100,9 @@ public class ScoreDbHelper extends SQLiteOpenHelper {
     public int deleteScore(int id) {
         SQLiteDatabase db = getWritableDatabase();
         return db.delete(TABLE_SCORE, COL_ID + "=?", new String[]{String.valueOf(id)});
+    }
+
+    private String nameFallback() {
+        return "player";
     }
 }
