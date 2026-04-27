@@ -269,6 +269,25 @@
                 android:layout_marginTop="4dp"
                 android:orientation="vertical">
 
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnViewLeaderboard"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:layout_marginBottom="10dp"
+                    android:text="查看排行榜"
+                    android:textColor="@color/accent"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    app:cornerRadius="12dp"
+                    app:icon="@android:drawable/ic_menu_sort_by_size"
+                    app:iconGravity="textStart"
+                    app:iconPadding="8dp"
+                    app:iconTint="@color/accent"
+                    app:rippleColor="#3000D9FF"
+                    app:strokeColor="#6000D9FF"
+                    app:strokeWidth="1dp" />
+
                 <!-- 退出登录按钮 -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnLogout"

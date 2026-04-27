@@ -134,7 +134,7 @@ public class OnlineLeaderboardActivity extends AppCompatActivity {
         ScoreItem item = leaderboard.get(selectedPosition);
         new Thread(() -> {
             try {
-                String body = "{\"id\":" + item.getId() + "}";
+                String body = "{\"id\":" + item.getId() + ",\"playerId\":\"" + playerId + "\"}";
                 String response = ApiClient.post("/api/leaderboard/delete", body);
                 if (ApiClient.isSuccess(response)) {
                     runOnUiThread(() -> {

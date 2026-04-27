@@ -99,6 +99,7 @@ public class OnlineLobbyActivity extends AppCompatActivity {
         btnStartGame.setOnClickListener(v -> startGame());
         btnLeaveRoom.setOnClickListener(v -> leaveRoom());
         findViewById(R.id.btnBackToMenu).setOnClickListener(v -> finish());
+        findViewById(R.id.btnViewLeaderboard).setOnClickListener(v -> openLeaderboard());
         findViewById(R.id.btnLogout).setOnClickListener(v -> logout());
 
         // 从结算页面“回到房间”跳转过来，直接查询房间信息并显示
@@ -235,6 +236,19 @@ public class OnlineLobbyActivity extends AppCompatActivity {
         intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         startActivity(intent);
         finish();
+    }
+
+    private void openLeaderboard() {
+        String difficulty = (String) spinnerDifficulty.getSelectedItem();
+        if (difficulty == null || difficulty.isEmpty()) {
+            difficulty = "普通模式";
+        }
+        Intent intent = new Intent(this, OnlineLeaderboardActivity.class);
+        intent.putExtra(OnlineLeaderboardActivity.EXTRA_DIFFICULTY, difficulty);
+        intent.putExtra(OnlineLeaderboardActivity.EXTRA_PLAYER_ID, playerId);
+        intent.putExtra(OnlineLeaderboardActivity.EXTRA_SERVER_URL, ApiClient.getBaseUrl());
+        intent.putExtra(OnlineLeaderboardActivity.EXTRA_BACK_TO_ONLINE_HOME, true);
+        startActivity(intent);
     }
 
     private void showRoomStatus(String difficulty) {
